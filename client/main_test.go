@@ -52,6 +52,22 @@ func TestSayHello2(t *testing.T) {
 	}
 }
 
+func dialer() func(context.Context, string) (net.Conn, error) {
+	listener := bufconn.Listen(1024 * 1024)
+	server := grpc.NewServer()
+	pb.RegisterGreeterServer(server, &mockServer{})
+
+	go func() {
+		if err := server.Serve(listener); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	return func(context.Context, string) (net.Conn, error) {
+		return listener.Dial()
+	}
+}
+
 type mockServer struct {
 	pb.UnimplementedGreeterServer
 }
@@ -68,20 +84,4 @@ func (s *mockServer) SayHelloAgain(ctx context.Context, in *pb.HelloRequest) (*p
 
 func (s *mockServer) Add(ctx context.Context, in *pb.AddRequest) (*pb.AddReply, error) {
 	return &pb.AddReply{Sum: in.GetA() + in.GetB()}, nil
-}
-
-func dialer() func(context.Context, string) (net.Conn, error) {
-	listener := bufconn.Listen(1024 * 1024)
-	server := grpc.NewServer()
-	pb.RegisterGreeterServer(server, &mockServer{})
-
-	go func() {
-		if err := server.Serve(listener); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	return func(context.Context, string) (net.Conn, error) {
-		return listener.Dial()
-	}
 }
